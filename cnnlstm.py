@@ -95,13 +95,13 @@ class AnomalyDetectionModel(nn.Module):
         super(AnomalyDetectionModel, self).__init__()
         self.scale_conversion = ScaleConversionLayer()
         in_channels, out_channels = 1, 16
-        input_size, hidden_size, num_layers = 4, 4, 1
+        input_size, hidden_size, num_layers = 4, 4, 2
         num_classes = 4
         self.conv1 = ConvLayer(in_channels, out_channels)
         self.conv2 = ConvLayer(in_channels, out_channels)
         self.lstm = LSTMRegularization(input_size, hidden_size, num_layers)
         self.fc = FullyConnectedLayer(out_channels + out_channels + hidden_size, num_classes)  # 4 classes for each label
-
+        
     def forward(self, x):
         identity, smooth, downsample = self.scale_conversion(x)
         identity = self.lstm(identity)
@@ -155,12 +155,13 @@ def cnnlstm():
     data_ = pd.read_csv('data.csv')
     features = data_[['Casting_Speed', 'SEN_Depth', 'Tundish_Temperature', 'Mold_Level']].values
     scaler = StandardScaler().fit(features)
-    dataset = TimeSeriesDataset('data.csv', scaler=scaler)
+    dataset = TimeSeriesDataset('data.csv') #, scaler=scaler)
     # Split the dataset into training and testing sets
     train_size = int(0.8 * len(dataset))  # 80% for training
     test_size = len(dataset) - train_size  # 20% for testing
-    train_dataset, test_dataset = random_split(dataset, [train_size, test_size])
-    
+    # train_dataset, test_dataset = random_split(dataset, [train_size, test_size])
+    train_dataset = dataset[:train_size]
+    test_dataset = dataset[train_size:]
     # train_dataset, test_dataset = train_test_split(dataset, test_size=0.2, random_state=42)
 
 
@@ -168,8 +169,8 @@ def cnnlstm():
     test_loader = DataLoader(test_dataset, batch_size=32, shuffle=False)
 
     model = AnomalyDetectionModel()
-    # criterion = nn.CrossEntropyLoss()
-    criterion = FocalLoss(alpha=0.1, gamma=3, reduction='mean')
+    # criterion = FocalLoss(alpha=0.1, gamma=3, reduction='mean')
+    criterion = nn.CrossEntropyLoss()
     optimizer = torch.optim.Adam(model.parameters(), lr=0.00001)
     for epoch in range(10):  # Number of epochs
         model.train()
@@ -188,6 +189,7 @@ def cnnlstm():
     with torch.no_grad():
         total, correct = 0, 0
         for data, labels in test_loader:
+            
             outputs = model(data.unsqueeze(1))
             _, predicted = torch.max(outputs, 1)
             total += labels.view(-1).size(0)

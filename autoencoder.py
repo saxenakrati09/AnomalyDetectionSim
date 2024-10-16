@@ -46,8 +46,12 @@ def autoencoder_main():
     features_scaled = scaler.fit_transform(features)
 
     # Split the data into training and testing sets
-    X_train, X_test = train_test_split(features_scaled, test_size=0.2, random_state=42)
+    # X_train, X_test = train_test_split(features_scaled, test_size=0.2, random_state=42)
+    train_size = int(0.8 * len(features_scaled))
+    # test_size = len(features_scaled) - train_size
 
+    X_train = features_scaled[:train_size]
+    X_test = features_scaled[train_size:]
 
     # Initialize the model, loss function, and optimizer
     input_dim = X_train.shape[1]
